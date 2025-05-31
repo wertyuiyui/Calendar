@@ -1,0 +1,16 @@
+release/calendardelegate.o
+release/calendarmodel.o
+release/calendarview.o
+release/holidaymanager.o
+release/icalparser.o
+release/lunarcalculator.o
+release/main.o
+release/weathercalendar.o
+release/qrc_resources.o
+release/qrc_qmake_qmake_immediate.o
+release/moc_calendardelegate.o
+release/moc_calendarmodel.o
+release/moc_calendarview.o
+release/moc_holidaymanager.o
+release/moc_icalparser.o
+release/moc_weathercalendar.o
