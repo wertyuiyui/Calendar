@@ -1,0 +1,28 @@
+<RCC>
+    <qresource prefix="/data">
+        <file>holidays.json</file>
+        <file>data/background.jpg</file>
+        <file>images/background.jpg</file>
+        <file>background.jpg</file>
+        <file>icons/left_arrow.svg</file>
+        <file>icons/right_arrow.svg</file>
+        <file>icons/right_arrow.png</file>
+        <file>icons/left_arrow.png</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file>icons/left_arrow.svg</file>
+        <file>icons/right_arrow.svg</file>
+        <file>icons/left_arrow.png</file>
+        <file>icons/right_arrow.png</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>images/cloudy.png</file>
+        <file>images/rainy.png</file>
+        <file>images/snowy.png</file>
+        <file>images/storm.png</file>
+        <file>images/sunny.png</file>
+        <file>images/windy.png</file>
+        <file>images/yin.png</file>
+        <file>images/ziti.TTF</file>
+    </qresource>
+</RCC>

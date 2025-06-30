@@ -1,0 +1,15 @@
+debug/calendardelegate.o
+debug/calendarmodel.o
+debug/calendarview.o
+debug/holidaymanager.o
+debug/lunarcalculator.o
+debug/main.o
+debug/scheduleitem.o
+debug/weathercalendar.o
+debug/qrc_resources.o
+debug/qrc_qmake_qmake_immediate.o
+debug/moc_calendardelegate.o
+debug/moc_calendarmodel.o
+debug/moc_calendarview.o
+debug/moc_holidaymanager.o
+debug/moc_weathercalendar.o
