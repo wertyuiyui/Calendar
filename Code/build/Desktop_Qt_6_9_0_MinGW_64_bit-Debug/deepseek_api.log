@@ -1,0 +1,176 @@
+[2025-06-30 01:37:31]
+URL: https://api.deepseek.com/chat/completions
+Status: 200
+Response:
+
+----------------------------------------
+
+[2025-06-30 01:37:35]
+URL: https://api.deepseek.com/chat/completions
+Status: 200
+Response:
+
+----------------------------------------
+
+[2025-06-30 01:39:55]
+URL: https://api.deepseek.com/chat/completions
+Status: 200
+Response:
+
+----------------------------------------
+
+[2025-06-30 01:52:16]
+URL: https://api.deepseek.com/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 01:55:21]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 02:04:27]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 02:04:47]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 401
+错误: Host requires authentication
+请求头:
+content-type: application/json
+authorization: Bearersk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+Authentication Fails (auth header format should be Bearer sk-...)
+----------------------------------------
+
+[2025-06-30 02:05:01]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 401
+错误: Host requires authentication
+请求头:
+content-type: application/json
+authorization: Bearersk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+cookie: HWWAFSESTIME=1751220287026; HWWAFSESID=391e69a7897b64a3e2
+响应内容:
+Authentication Fails (auth header format should be Bearer sk-...)
+----------------------------------------
+
+[2025-06-30 02:05:42]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 02:14:21]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 09:47:43]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 09:54:07]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 09:56:31]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+
+[2025-06-30 15:41:10]
+URL: https://api.deepseek.com/v1/chat/completions
+HTTP方法: POST
+状态码: 200
+错误: Unknown error
+请求头:
+content-type: application/json
+authorization: Bearer sk-84ddef63033f41b4b2d3ccebddc3cd43
+accept: application/json
+content-length: 1472
+响应内容:
+
+----------------------------------------
+

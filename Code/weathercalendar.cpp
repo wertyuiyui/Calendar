@@ -49,10 +49,94 @@
 #include <QProgressDialog>
 #include <QScrollBar>
 #include <QMessageBox>
+// 添加必要的头文件
+#include <QSslError>
+#include <QTimeZone>
+#include <zlib.h>
+
+// 修改gzip解压缩函数，添加详细错误处理
+QByteArray gzipDecompress(const QByteArray &compressedData)
+{
+    if (compressedData.isEmpty()) {
+        qWarning() << "解压缩错误: 输入数据为空";
+        return QByteArray();
+    }
+
+    // 准备zlib解压缩流
+    z_stream zs;
+    memset(&zs, 0, sizeof(zs));
+
+    // 使用gzip头部 (16 + MAX_WBITS)
+    int initResult = inflateInit2(&zs, 16 + MAX_WBITS);
+    if (initResult != Z_OK) {
+        qWarning() << "inflateInit2失败，错误代码:" << initResult;
+        if (zs.msg) qWarning() << "错误信息:" << zs.msg;
+        return QByteArray();
+    }
+
+    zs.next_in = (Bytef*)compressedData.data();
+    zs.avail_in = compressedData.size();
+
+    int ret;
+    QByteArray uncompressed;
+    const int BUFFER_SIZE = 32768;
+    char outbuffer[BUFFER_SIZE];
+
+    // 解压缩数据
+    do {
+        zs.next_out = reinterpret_cast<Bytef*>(outbuffer);
+        zs.avail_out = BUFFER_SIZE;
+
+        ret = inflate(&zs, Z_NO_FLUSH);
+
+        if (ret == Z_STREAM_ERROR) {
+            qWarning() << "gzip解压缩错误: 流错误";
+            break;
+        }
+
+        int have = BUFFER_SIZE - zs.avail_out;
+        if (have > 0) {
+            uncompressed.append(outbuffer, have);
+        }
+
+        if (ret == Z_DATA_ERROR) {
+            qWarning() << "gzip解压缩错误: 数据错误 - 可能是无效的gzip数据";
+            break;
+        }
+
+        if (ret == Z_MEM_ERROR) {
+            qWarning() << "gzip解压缩错误: 内存不足";
+            break;
+        }
+    } while (ret == Z_OK);
+
+    inflateEnd(&zs);
+
+    if (ret != Z_STREAM_END) {
+        qWarning() << "gzip解压缩未完成，错误代码:" << ret;
+        if (zs.msg) qWarning() << "错误信息:" << zs.msg;
+
+        // 保存原始数据用于调试
+        QFile debugFile("gzip_debug.bin");
+        if (debugFile.open(QIODevice::WriteOnly)) {
+            debugFile.write(compressedData);
+            debugFile.close();
+            qWarning() << "原始gzip数据已保存到: gzip_debug.bin";
+        }
+
+        return QByteArray();
+    }
+
+    qDebug() << "解压缩成功，原始大小:" << compressedData.size()
+             << "解压后大小:" << uncompressed.size();
+    return uncompressed;
+}
+
 
 void WeatherCalendar::closeEvent(QCloseEvent *event) {
-    saveSchedules(); // 在关闭前保存日程
-    event->accept(); // 接受关闭事件
+    saveSchedules(); // 保存日程
+    saveBirthdays(); // 新增：保存生日数据
+    event->accept();
 }
 
 // 简单异或加密（生产环境建议使用更安全的算法）
@@ -65,6 +149,13 @@ WeatherCalendar::WeatherCalendar(QWidget *parent)
     if (!m_background.load(":/data/background.jpg")) {
         QMessageBox::critical(this, "错误", "无法加载背景图片");
     }
+    // 配置SSL支持
+    QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+    sslConfig.setProtocol(QSsl::TlsV1_2OrLater);
+    QSslConfiguration::setDefaultConfiguration(sslConfig);
+
+    // 设置网络代理为自动检测
+    QNetworkProxyFactory::setUseSystemConfiguration(true);
     setMinimumSize(MIN_SIZE);
     initUI();  // 必须先初始化UI
     m_calendarView->setMaxScheduleCount(10);  // 现在m_calendarView已初始化
@@ -412,8 +503,19 @@ void WeatherCalendar::applyStyle()
 void WeatherCalendar::initNetwork()
 {
     m_weatherManager = new QNetworkAccessManager(this);
+
+    // 设置接受gzip编码
+    m_weatherManager->setTransferTimeout(30000); // 30秒超时
     connect(m_weatherManager, &QNetworkAccessManager::finished,
             this, &WeatherCalendar::handleWeatherReply);
+
+    // 配置SSL
+    QSslConfiguration sslConfig = QSslConfiguration::defaultConfiguration();
+    sslConfig.setProtocol(QSsl::TlsV1_2OrLater);
+    QSslConfiguration::setDefaultConfiguration(sslConfig);
+
+    // 设置代理
+    QNetworkProxyFactory::setUseSystemConfiguration(true);
 
     m_weatherTimer = new QTimer(this);
     m_weatherTimer->start(3600000); // 每小时更新
@@ -1014,7 +1116,9 @@ void FortuneDialog::showLoading(bool show) {
 // WeatherCalendar 运势功能实现
 // =============================================
 
-void WeatherCalendar::logApiResponse(const QByteArray &response, QNetworkReply *reply) {
+// 修改logApiResponse函数，记录更多信息
+void WeatherCalendar::logApiResponse(const QByteArray &response, QNetworkReply *reply)
+{
     QFile file("deepseek_api.log");
     if (file.open(QIODevice::Append | QIODevice::Text)) {
         QTextStream out(&file);
@@ -1022,11 +1126,25 @@ void WeatherCalendar::logApiResponse(const QByteArray &response, QNetworkReply *
 
         if (reply) {
             out << "URL: " << reply->url().toString() << "\n";
-            out << "Status: " << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() << "\n";
+            out << "HTTP方法: " << (reply->operation() == QNetworkAccessManager::PostOperation ? "POST" : "GET") << "\n";
+            out << "状态码: " << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() << "\n";
+            out << "错误: " << reply->errorString() << "\n";
+
+            // 记录请求头
+            out << "请求头:\n";
+            QList<QByteArray> headers = reply->request().rawHeaderList();
+            foreach (const QByteArray &header, headers) {
+                out << header << ": " << reply->request().rawHeader(header) << "\n";
+            }
         }
 
-        out << "Response:\n" << response << "\n";
-        out << "----------------------------------------\n\n";
+        out << "响应内容:\n";
+        if (response.size() > 1000) {
+            out << response.left(500) << "\n...\n" << response.right(500);
+        } else {
+            out << response;
+        }
+        out << "\n----------------------------------------\n\n";
         file.close();
     }
 }
@@ -1076,8 +1194,9 @@ void WeatherCalendar::showFortune() {
     QString weekday = today.toString("dddd");
 
     // 构建DeepSeek API请求
-    QNetworkRequest request(QUrl("https://api.deepseek.com/chat/completions"));
+    QNetworkRequest request(QUrl("https://api.deepseek.com/v1/chat/completions"));
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+    m_deepseekApiKey = "sk-84ddef63033f41b4b2d3ccebddc3cd43";
     request.setRawHeader("Authorization", ("Bearer " + m_deepseekApiKey).toUtf8());
     request.setRawHeader("Accept", "application/json");
 
@@ -1146,63 +1265,81 @@ void WeatherCalendar::showFortune() {
     });
 }
 
-void WeatherCalendar::handleFortuneReply(QNetworkReply *reply) {
+void WeatherCalendar::handleFortuneReply(QNetworkReply *reply)
+{
     reply->deleteLater();
-
-    // 获取网络错误和状态码
-    QNetworkReply::NetworkError error = reply->error();
-    int statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-    QString statusMsg = reply->attribute(QNetworkRequest::HttpReasonPhraseAttribute).toString();
+    m_fortuneDialog->showLoading(false);
 
     // 读取原始响应
     QByteArray rawResponse = reply->readAll();
 
-    // 记录API响应
-    logApiResponse(rawResponse, reply);
-
-    // 更新对话框状态
-    m_fortuneDialog->showLoading(false);
-
-    // 构建详细的错误信息
-    QString errorDetails = QString("网络错误: %1\nHTTP状态码: %2 %3")
-                               .arg(reply->errorString())
-                               .arg(statusCode)
-                               .arg(statusMsg);
-
-    // 调试输出
-    qDebug() << "DeepSeek API请求详情:";
-    qDebug() << "URL:" << reply->url().toString();
-    qDebug() << "HTTP方法:" << reply->operation();
-    qDebug() << "响应状态:" << statusCode << statusMsg;
-    qDebug() << "响应内容:" << rawResponse;
-    qDebug() << "错误信息:" << errorDetails;
-
-    // 处理网络错误
-    if (error != QNetworkReply::NoError) {
-        QString errorMsg = QString("获取运势失败:\n%1\n\n%2")
-                               .arg(reply->errorString(), errorDetails);
-
-        m_fortuneDialog->setFortuneText(errorMsg);
-        m_fortuneDialog->m_retryButton->disconnect();
-        connect(m_fortuneDialog->m_retryButton, &QPushButton::clicked,
-                this, &WeatherCalendar::retryFortune);
-        return;
+    // 保存原始响应用于调试
+    QFile rawResponseFile("raw_api_response.bin");
+    if (rawResponseFile.open(QIODevice::WriteOnly)) {
+        rawResponseFile.write(rawResponse);
+        rawResponseFile.close();
+        qDebug() << "原始API响应已保存到: raw_api_response.bin";
     }
+
+    // 检查内容编码
+    QByteArray contentEncodingHeader = reply->rawHeader("Content-Encoding");
+    QString contentEncoding = QString::fromLatin1(contentEncodingHeader).toLower();
+    qDebug() << "内容编码:" << contentEncoding;
+
+    // 如果是gzip压缩，则解压缩
+    if (contentEncoding == "gzip") {
+        qDebug() << "检测到gzip压缩响应，尝试解压...";
+        QByteArray uncompressed = gzipDecompress(rawResponse);
+
+        if (!uncompressed.isEmpty()) {
+            qDebug() << "解压成功! 解压后大小:" << uncompressed.size() << "字节";
+            rawResponse = uncompressed;
+
+            // 保存解压后的响应
+            QFile uncompressedFile("uncompressed_response.json");
+            if (uncompressedFile.open(QIODevice::WriteOnly)) {
+                uncompressedFile.write(uncompressed);
+                uncompressedFile.close();
+                qDebug() << "解压后的响应已保存到: uncompressed_response.json";
+            }
+        } else {
+            qDebug() << "解压失败，使用原始响应";
+        }
+    }
+
+    // 记录响应
+    logApiResponse(rawResponse, reply);
 
     // 处理空响应
     if (rawResponse.isEmpty()) {
-        QString emptyResponseMsg = "API返回空响应\n可能原因：\n"
-                                   "1. API密钥无效或过期\n"
-                                   "2. 请求格式不正确\n"
-                                   "3. 服务器未响应\n"
-                                   "4. 网络连接问题\n\n"
-                                   + errorDetails;
-        m_fortuneDialog->setFortuneText(emptyResponseMsg);
-        m_fortuneDialog->m_retryButton->disconnect();
-        connect(m_fortuneDialog->m_retryButton, &QPushButton::clicked,
-                this, &WeatherCalendar::retryFortune);
+        // 构建详细错误信息
+        QString errorMsg = "API返回空响应\n\n";
+        errorMsg += "URL: " + reply->url().toString() + "\n";
+        errorMsg += "状态码: " + QString::number(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt()) + "\n";
+        errorMsg += "内容编码: " + contentEncoding + "\n";
+        errorMsg += "原始响应大小: " + QString::number(rawResponse.size()) + " 字节\n";
+
+        // 添加网络诊断信息
+        errorMsg += "\n网络诊断:\n";
+
+        errorMsg += "  SSL版本: " + QSslSocket::sslLibraryVersionString() + "\n";
+        errorMsg += "  zlib版本: " + QString(zlibVersion()) + "\n";
+
+        // 添加请求详情
+        errorMsg += "\n请求头:\n";
+        foreach (const QByteArray &header, reply->request().rawHeaderList()) {
+            errorMsg += header + ": " + reply->request().rawHeader(header) + "\n";
+        }
+
+        errorMsg += "\n响应头:\n";
+        foreach (const QNetworkReply::RawHeaderPair &pair, reply->rawHeaderPairs()) {
+            errorMsg += pair.first + ": " + pair.second + "\n";
+        }
+
+        m_fortuneDialog->setFortuneText(errorMsg);
         return;
     }
+
 
     // 尝试解析JSON
     QJsonParseError parseError;
@@ -1541,38 +1678,83 @@ void BirthdayDialog::deleteBirthday()
     }
 }
 
-// 实现生日数据持久化
+// 生日数据文件路径
+const QString BIRTHDAY_FILE = "birthdays.dat";
+
+// 保存生日数据
 void WeatherCalendar::saveBirthdays()
 {
-    QSettings settings;
-    settings.beginWriteArray("birthdays", m_birthdays.size());
-
-    for (int i = 0; i < m_birthdays.size(); ++i) {
-        settings.setArrayIndex(i);
-        settings.setValue("name", m_birthdays[i].name);
-        settings.setValue("birthday", m_birthdays[i].birthday);
-        settings.setValue("note", m_birthdays[i].note);
+    QFile file(BIRTHDAY_FILE);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "无法打开生日数据文件进行写入:" << BIRTHDAY_FILE;
+        return;
     }
 
-    settings.endArray();
+    QDataStream out(&file);
+    out.setVersion(QDataStream::Qt_6_0);
+
+    // 写入文件头
+    out << quint32(0xB1DA); // 自定义魔数
+
+    // 写入记录数量
+    out << static_cast<quint32>(m_birthdays.size());
+
+    // 写入每条记录
+    for (const auto& entry : m_birthdays) {
+        out << entry.name;
+        out << entry.birthday;
+        out << entry.note;
+    }
+
+    file.close();
+    qDebug() << "生日数据已保存到:" << BIRTHDAY_FILE << "记录数:" << m_birthdays.size();
 }
 
+
+// 加载生日数据
 void WeatherCalendar::loadBirthdays()
 {
-    QSettings settings;
-    int size = settings.beginReadArray("birthdays");
+    QFile file(BIRTHDAY_FILE);
+    if (!file.exists() || !file.open(QIODevice::ReadOnly)) {
+        qWarning() << "生日数据文件不存在或无法打开:" << BIRTHDAY_FILE;
+        return;
+    }
 
     m_birthdays.clear();
-    for (int i = 0; i < size; ++i) {
-        settings.setArrayIndex(i);
+    QDataStream in(&file);
+    in.setVersion(QDataStream::Qt_6_0);
+
+    // 检查文件头
+    quint32 magic;
+    in >> magic;
+    if (magic != 0xB1DA) {
+        qWarning() << "无效的生日数据文件格式";
+        file.close();
+        return;
+    }
+
+    // 读取记录数量
+    quint32 count;
+    in >> count;
+
+    // 读取每条记录
+    for (quint32 i = 0; i < count; ++i) {
         BirthdayEntry entry;
-        entry.name = settings.value("name").toString();
-        entry.birthday = settings.value("birthday").toDate();
-        entry.note = settings.value("note").toString();
+        in >> entry.name;
+        in >> entry.birthday;
+        in >> entry.note;
+
+        // 跳过无效条目
+        if (entry.name.isEmpty() || !entry.birthday.isValid()) {
+            qWarning() << "跳过无效的生日记录";
+            continue;
+        }
+
         m_birthdays.append(entry);
     }
 
-    settings.endArray();
+    file.close();
+    qDebug() << "从文件加载生日数据:" << m_birthdays.size() << "条记录";
 }
 
 // 显示生日对话框

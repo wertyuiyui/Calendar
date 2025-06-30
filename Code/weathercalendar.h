@@ -133,6 +133,7 @@ class WeatherCalendar : public QMainWindow {
 public:
     explicit WeatherCalendar(QWidget *parent = nullptr);
     QDate m_currentDate;  // 当前显示日期
+    void testNetworkConnection();
 private slots:
     void handleWeatherReply(QNetworkReply *reply);
     void updateWeather();
@@ -235,4 +236,6 @@ private:
 private slots:
     void showIcalImportDialog();
 };
+QByteArray gzipDecompress(const QByteArray &compressedData);
+
 #endif // WEATHERCALENDAR_H

@@ -79,9 +79,6 @@ QString HolidayManager::getHoliday(const QDate &date) const
     // 生成MMdd格式的日期键
     QString key = date.toString("MMdd");
 
-    // 调试输出查询过程
-    qDebug() << "查询日期：" << date.toString("yyyy-MM-dd")
-             << "，转换键：" << key;
 
     // 返回节假日名称（无节假日返回空字符串）
     return m_holidays.value(key, "");

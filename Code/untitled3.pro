@@ -29,3 +29,4 @@ HEADERS += \
 RESOURCES += holidays.json \
     resources.qrc
 
+LIBS += -lz
